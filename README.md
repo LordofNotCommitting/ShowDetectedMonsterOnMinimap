@@ -9,4 +9,4 @@ Changelog:
 v1.1:
 
 Will now also display detection radius. The detection radius includes the highlighted tile.
-Also make map detection work with quasidetector.
+Also make monster detection work with quasidetector.
