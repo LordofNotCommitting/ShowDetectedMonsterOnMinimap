@@ -3,23 +3,24 @@ using MGSC;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
-using UnityEngine;
-
 using Unity.Collections;
+using UnityEngine;
 
 namespace ShowDetectedMonsterOnMinimap
 {
     [HarmonyPatch(typeof(FogOfWar), nameof(FogOfWar.RefreshMinimap))]
     public static class MapMarkEnemy
     {
+        static Sprite _minimapAllySprite;
         [HarmonyPostfix]
         public static void Postfix(ref FogOfWar __instance, bool forceShowMonsters = false, bool forceShowItems = false, bool forceShowExits = false)
         {
             if (!forceShowMonsters)
             {
-                
+
                 if (__instance._creatures.Player != null)
                 {
 
@@ -81,19 +82,69 @@ namespace ShowDetectedMonsterOnMinimap
                         }
                     }
                 }
+                if (_minimapAllySprite is null) {
+
+                    //Plugin.Logger.Log("when does image creation proc really");
+                    Sprite original = __instance._minimapEnemySprite;
+
+                    Texture2D tex = original.texture;
+                    Texture2D newTex = new Texture2D(tex.width, tex.height);
+
+                    Color[] px = tex.GetPixels();
+                    for (int i = 0; i < px.Length; i++)
+                    {
+                        Color32 temp_color = px[i];
+                        px[i] = new Color32(0, (byte)(Math.Min(temp_color.r + (byte)70, byte.MaxValue)), (byte)(Math.Min(temp_color.r + (byte)70, byte.MaxValue)), temp_color.a); // white RGB, keep alpha
+                    }
+
+                    newTex.SetPixels(px);
+                    newTex.Apply();
+
+                    _minimapAllySprite = Sprite.Create(
+                        newTex,
+                        __instance._minimapEnemySprite.textureRect,
+                        __instance._minimapEnemySprite.pivot
+                    );
+                }
+                
+
+
+
+
+
                 foreach (Monster creature in __instance._creatures.Monsters)
                 {
-                    if (!creature.IsSeenByPlayer && (creature.ShowSignal || creature._wasSpottedThisAp || creature.CreatureData.EffectsController.HasAnyEffect<Spotted>()))
+
+                    int x3 = creature.CreatureData.Position.X * 4;
+                    int y3 = creature.CreatureData.Position.Y * 4;
+                    if (creature.ShowSignal || creature._wasSpottedThisAp || creature.CreatureData.EffectsController.HasAnyEffect<Spotted>())
                     {
-                        
-                        bool is_quest = MissionSystem.IsQuestMonster(__instance._raidMetadata, creature);
-                        if (!is_quest)
+                        //unseen hostile
+                        if (!creature.IsSeenByPlayer)
                         {
-                            int x3 = creature.CreatureData.Position.X * 4;
-                            int y3 = creature.CreatureData.Position.Y * 4;
-                            TextureHelper.BakeSprite32To32(__instance._mapTexture, __instance._minimapEnemySprite, new CellPosition(x3, y3), false);
+                            bool is_quest = MissionSystem.IsQuestMonster(__instance._raidMetadata, creature);
+
+                            if (!is_quest && (creature.CreatureData.CreatureAlliance != __instance._creatures.Player.CreatureData.CreatureAlliance))
+                            {
+                                TextureHelper.BakeSprite32To32(__instance._mapTexture, __instance._minimapEnemySprite, new CellPosition(x3, y3), false);
+                            }
                         }
+                        //unseen ally
+                        if (creature.CreatureData.CreatureAlliance == __instance._creatures.Player.CreatureData.CreatureAlliance)
+                        {
+                            //Plugin.Logger.Log("player ally detected");
+                            TextureHelper.BakeSprite32To32(__instance._mapTexture, _minimapAllySprite, new CellPosition(x3, y3), false);
+                        }
+                    } 
+                    //if creature is seen and is ally
+                    else if (creature.IsSeenByPlayer && creature.CreatureData.CreatureAlliance == __instance._creatures.Player.CreatureData.CreatureAlliance)
+                    {
+                        //Plugin.Logger.Log("player ally detected");
+                        TextureHelper.BakeSprite32To32(__instance._mapTexture, _minimapAllySprite, new CellPosition(x3, y3), false);
                     }
+
+
+
                 }
                 __instance._mapTexture.Apply();
             }
