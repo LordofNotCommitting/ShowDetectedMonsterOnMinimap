@@ -6,6 +6,10 @@ With new builds allowing for detection range larger than your screen, I think it
 
 Changelog:
 
+v1.2:
+
+Now will show allies in Green instead of normal "Enemy Red".
+
 v1.1:
 
 Will now also display detection radius. The detection radius includes the highlighted tile.
